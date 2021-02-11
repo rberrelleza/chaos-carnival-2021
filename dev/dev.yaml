@@ -1,0 +1,66 @@
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: chaos-dev
+  labels:
+    name: chaos-dev
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: chaos-dev
+  labels:
+    name: chaos-dev
+rules:
+- apiGroups: [""]
+  resources: ["pods","pods/exec","pods/log","events","replicationcontrollers"]
+  verbs: ["create","list","get","patch","update","delete","deletecollection"]
+- apiGroups: ["batch"]
+  resources: ["jobs"]
+  verbs: ["create","list","get","delete","deletecollection"]
+- apiGroups: ["apps"]
+  resources: ["deployments","statefulsets","daemonsets","replicasets"]
+  verbs: ["list","get", "create", "delete"]
+- apiGroups: ["apps.openshift.io"]
+  resources: ["deploymentconfigs"]
+  verbs: ["list","get"]
+- apiGroups: ["argoproj.io"]
+  resources: ["rollouts"]
+  verbs: ["list","get"]
+- apiGroups: ["litmuschaos.io"]
+  resources: ["chaosengines","chaosexperiments","chaosresults"]
+  verbs: ["create","list","get","patch","update", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: chaos-dev
+  labels:
+    name: chaos-dev
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+- kind: ServiceAccount
+  name: chaos-dev
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chaos-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chaos-dev
+  template:
+    metadata:
+      labels:
+        app: chaos-dev
+    spec:
+      containers:
+      - image: nginx # placeholder
+        name: dev
+      serviceAccountName: chaos-dev
