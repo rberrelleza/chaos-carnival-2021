@@ -8,6 +8,7 @@ import time
 from datetime import datetime
 import subprocess
 import yaml
+import signal
 
 class ExperimentResult(object):
     """
@@ -18,7 +19,7 @@ class ExperimentResult(object):
         self.name = name
         self.status = status
         self.startTime = startTime
-        
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -107,7 +108,7 @@ def run_experiment(experiment: str):
     logs_cmd = f"kubectl logs --since=10s -l name={experiment} -n {namespace}"
     print(f"\n{bcolors.OKGREEN}//** Experiment Logs ({logs_cmd}) **//\n\n")
     try:
-        while subprocess.check_output(expStatusCmd, shell=True).decode('unicode-escape') != "Completed":
+        while subprocess.check_output(expStatusCmd, shell=True, stdin=subprocess.PIPE).decode('unicode-escape') != "Completed":
             os.system(logs_cmd)
             os.system("sleep 10")
 
@@ -162,6 +163,11 @@ def test(args):
     ty_res = time.gmtime(diffTimeStamp)
     totalTime = time.strftime("%H:%M:%S",ty_res)
 
+def stop(args):
+    run_shell("kubectl delete -f ./application/deployment.yaml")
+    run_shell("kubectl delete -f ./application/service.yaml")
+    run_shell("kubectl delete -f ./application/ingress.yaml")
+
 if __name__ == "__main__":
 
     if (len(sys.argv) < 2):
@@ -173,6 +179,9 @@ if __name__ == "__main__":
 
     parser_start = subparsers.add_parser("start", help="Start application under test.")
     parser_start.set_defaults(func=start)
+
+    parser_stop = subparsers.add_parser("stop", help="stop application under test.")
+    parser_stop.set_defaults(func=stop)
     
     # Test command
     parser_test = subparsers.add_parser("test", help="Run Litmus ChaosEngine Experiments inside litmus demo environment.")
@@ -189,6 +198,8 @@ if __name__ == "__main__":
     # List Tests Command
     parser_list = subparsers.add_parser("list", help="List all available Litmus ChaosEngine Experiments available to run.")
     parser_list.set_defaults(func=list)
+
+    signal.signal(signal.SIGINT, signal_handler)
 
     args = parser.parse_args()
     args.func(args)
